@@ -1,0 +1,57 @@
+# 工作流名称
+name: Build Gopeed for Windows 7
+
+# 工作流触发器
+on:
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  build:
+    # 使用最新的 Ubuntu 虚拟机环境
+    runs-on: ubuntu-latest
+
+    steps:
+      # 第 1 步：拉取 Gopeed 的源代码
+      # 注意：这里我们使用了 `repository` 参数来指定外部仓库
+      - name: Checkout Gopeed Source Code
+        uses: actions/checkout@v4
+        with:
+          repository: GopeedLab/gopeed
+          ref: main # 可以指定分支、tag 或 commit hash
+
+      # 第 2 步：设置 Go 1.21 环境
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      # 第 3 步：执行交叉编译
+      # 目标：Windows 32位 (x86)，以确保在 Windows 7 上的最大兼容性
+      - name: Build for Windows (x86) for Win7 Compatibility
+        # 设置环境变量，这是交叉编译的关键
+        env:
+          GOOS: windows
+          GOARCH: 386
+          CGO_ENABLED: 0
+        run: |
+          # 进入要编译的 main 包所在目录
+          cd cmd/gopeed
+          
+          # 执行编译命令
+          # -o 指定输出文件名为 gopeed.exe
+          # -trimpath 和 -ldflags 用于优化和减小文件体积
+          echo "Building Gopeed..."
+          go build -o gopeed.exe -trimpath -ldflags="-s -w" .
+          echo "Build finished: gopeed.exe"
+          ls -l gopeed.exe
+
+      # 第 4 步：上传编译产物
+      # 编译完成后，将 gopeed.exe 文件打包上传，方便下载
+      - name: Upload Gopeed Windows Executable
+        uses: actions/upload-artifact@v4
+        with:
+          # 上传的产物名称
+          name: gopeed-windows-x86-for-win7
+          # 需要上传的文件路径
+          path: cmd/gopeed/gopeed.exe
